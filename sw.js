@@ -20,4 +20,14 @@ self.addEventListener("fetch", event => {
     })
   );
 });
+fetch("https://script.google.com/macros/s/AKfycbwM7JjEVImTA1UNESvOmvjGc0GUQtAgX8PKtAzuQrUeQE9lxjkPnoj13WXIibxKefrO/exec", {
+  method: "POST",
+  body: JSON.stringify({
+    product: product,
+    qty: qty,
+    unit: unit,
+    price: total,
+    store: store
+  })
+});
 ```

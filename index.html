@@ -146,7 +146,6 @@ const totalPaid=parseFloat(document.getElementById('c_totalpaid').value)
 let unitPaid=parseFloat(document.getElementById('c_unitpaid').value)
 const comp=parseFloat(document.getElementById('c_comp').value)
 const compunit=document.getElementById('c_compunit').value
-saveToGoogleSheet(product, qty, unit, total)
 
 if(!product||!qty||!comp)return
 
@@ -302,29 +301,10 @@ let html=`
 
 document.getElementById('dashStats').innerHTML=html
 }
-  
-function saveToGoogleSheet(product, qty, unit, price) {
 
-fetch("https://script.google.com/macros/s/AKfycbzHV-W6XkQYWL_5CDYK7GVpVKrEJ5jRAzznS8zaMrSUR0Ba8-ZyzqKGKaBjfVFExGuY/exec", {
-
-method: "POST",
-
-body: JSON.stringify({
-product: product,
-qty: qty,
-unit: unit,
-price: price,
-store: "Manual Entry"
-})
-
-})
-.then(response => response.json())
-.then(data => console.log("Saved:", data))
-.catch(error => console.error("Error:", error));
-
-}
 </script>
 </body>
 
 </html>
+
 

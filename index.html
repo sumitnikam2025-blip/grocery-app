@@ -1,0 +1,306 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Smart Grocery Comparator</title>
+<style>
+body{font-family:Arial;background:#f4f6f8;margin:0;padding:16px}
+.container{max-width:560px;margin:auto}
+.card{background:#fff;border-radius:12px;padding:18px;box-shadow:0 4px 10px rgba(0,0,0,0.08);margin-bottom:16px}
+h2{text-align:center;margin-bottom:10px}
+h3{margin-top:10px}
+label{font-size:14px;margin-top:8px;display:block}
+input,select,textarea{width:100%;padding:10px;margin-top:5px;border-radius:8px;border:1px solid #ccc;font-size:15px}
+textarea{height:90px}
+button{width:100%;margin-top:10px;padding:12px;background:#2563eb;color:#fff;border:none;border-radius:10px;font-size:16px}
+.smallbtn{background:#0f766e}
+.nav button{background:#1f2937;margin-bottom:6px}
+.result{margin-top:12px;background:#f1f5f9;padding:12px;border-radius:10px}
+.good{color:#15803d;font-weight:bold}
+.bad{color:#b91c1c;font-weight:bold}
+table{width:100%;border-collapse:collapse;margin-top:10px}
+th,td{padding:6px;font-size:14px;border-bottom:1px solid #ddd;text-align:left}
+.actionBtn{padding:4px 8px;font-size:12px;margin-right:4px;border-radius:6px;border:none}
+.editBtn{background:#f59e0b;color:white}
+.delBtn{background:#dc2626;color:white}
+</style>
+</head>
+<body>
+<div class="container">
+
+<div class="card nav" id="home">
+<h2>Smart Grocery App</h2>
+<button onclick="showPage('compare')">Price Comparator</button>
+<button onclick="showPage('tracker')">Price Tracker</button>
+<button onclick="showPage('history')">Transaction History</button>
+<button onclick="showPage('dashboard')">Savings Dashboard</button>
+</div>
+
+<div class="card" id="compare" style="display:none">
+<h3>Live Price Comparator</h3>
+
+<label>Product Name</label>
+<input id="c_product">
+
+<label>Quantity</label>
+<input type="number" id="c_qty">
+
+<label>Unit</label>
+<select id="c_unit">
+<option>KG</option>
+<option>LB</option>
+<option>QTY</option>
+</select>
+
+<label>Total Price Paid (either)</label>
+<input type="number" id="c_totalpaid">
+
+<label>Unit Price Paid (or)</label>
+<input type="number" id="c_unitpaid">
+
+<label>Competitor Unit Price</label>
+<input type="number" id="c_comp">
+
+<label>Competitor Unit</label>
+<select id="c_compunit">
+<option>KG</option>
+<option>LB</option>
+<option>QTY</option>
+</select>
+
+<button onclick="addItem()">Add Item</button>
+<button class="smallbtn" onclick="calculateTransaction()">Calculate Transaction</button>
+
+<h3>Receipt Mode (Paste Items)</h3>
+<textarea id="receiptInput" placeholder="Example:\nChicken 2 KG 18 4.5 LB\nRice 5 KG 14 3 KG"></textarea>
+<button class="smallbtn" onclick="parseReceipt()">Add From Receipt</button>
+
+<div id="items"></div>
+<div class="result" id="compareResult" style="display:none"></div>
+<button onclick="showPage('home')">Back</button>
+</div>
+
+<div class="card" id="tracker" style="display:none">
+<h3>Price Tracker (Reference Only)</h3>
+<label>Product</label>
+<input id="t_product">
+
+<label>Store</label>
+<input id="t_store">
+
+<label>Price</label>
+<input type="number" id="t_price">
+
+<label>Unit</label>
+<select id="t_unit">
+<option>KG</option>
+<option>LB</option>
+<option>QTY</option>
+</select>
+
+<button onclick="savePrice()">Save Price</button>
+
+<table id="priceTable">
+<tr><th>Product</th><th>Store</th><th>Price</th><th>Unit</th></tr>
+</table>
+
+<button onclick="showPage('home')">Back</button>
+</div>
+
+<div class="card" id="history" style="display:none">
+<h3>Shopping History</h3>
+<table id="historyTable">
+<tr><th>Date</th><th>Items</th><th>Savings</th></tr>
+</table>
+<button onclick="showPage('home')">Back</button>
+</div>
+
+<div class="card" id="dashboard" style="display:none">
+<h3>Savings Dashboard</h3>
+<div id="dashStats"></div>
+<button onclick="showPage('home')">Back</button>
+</div>
+
+</div>
+
+<script>
+const LB_PER_KG=2.20462
+let cart=[]
+
+function showPage(id){
+['home','compare','tracker','history','dashboard'].forEach(p=>{
+document.getElementById(p).style.display='none'
+})
+document.getElementById(id).style.display='block'
+if(id==='tracker')loadPrices()
+if(id==='history')loadHistory()
+if(id==='dashboard')loadDashboard()
+}
+
+function addItem(){
+const product=document.getElementById('c_product').value
+const qty=parseFloat(document.getElementById('c_qty').value)
+const unit=document.getElementById('c_unit').value
+const totalPaid=parseFloat(document.getElementById('c_totalpaid').value)
+let unitPaid=parseFloat(document.getElementById('c_unitpaid').value)
+const comp=parseFloat(document.getElementById('c_comp').value)
+const compunit=document.getElementById('c_compunit').value
+
+if(!product||!qty||!comp)return
+
+if(isNaN(unitPaid) && !isNaN(totalPaid)){
+unitPaid=totalPaid/qty
+}
+
+if(isNaN(unitPaid)){
+alert('Enter total price or unit price')
+return
+}
+
+cart.push({product,qty,unit,unitPaid,comp,compunit})
+renderCart()
+}
+
+function renderCart(){
+let html='<table><tr><th>Product</th><th>Qty</th><th>Your Unit</th><th>Actions</th></tr>'
+cart.forEach((i,index)=>{
+html+=`<tr>
+<td>${i.product}</td>
+<td>${i.qty} ${i.unit}</td>
+<td>${i.unitPaid.toFixed(2)}</td>
+<td>
+<button class='actionBtn editBtn' onclick='editItem(${index})'>Edit</button>
+<button class='actionBtn delBtn' onclick='removeItem(${index})'>X</button>
+</td>
+</tr>`
+})
+html+='</table>'
+document.getElementById('items').innerHTML=html
+}
+
+function editItem(i){
+let item=cart[i]
+document.getElementById('c_product').value=item.product
+cart.splice(i,1)
+renderCart()
+}
+
+function removeItem(i){
+cart.splice(i,1)
+renderCart()
+}
+
+function convertPrice(price,from,to){
+if(from===to)return price
+if(from==='KG'&&to==='LB')return price/LB_PER_KG
+if(from==='LB'&&to==='KG')return price*LB_PER_KG
+return price
+}
+
+function calculateTransaction(){
+if(cart.length===0){alert('Add product');return}
+
+let totalDiff=0
+let html='<table><tr><th>Product</th><th>Your Price</th><th>Competitor</th><th>Diff</th></tr>'
+
+cart.forEach(i=>{
+let compConverted=convertPrice(i.comp,i.compunit,i.unit)
+let diff=(compConverted-i.unitPaid)*i.qty
+
+totalDiff+=diff
+
+let cls=diff>0?'good':'bad'
+
+html+=`<tr>
+<td>${i.product}</td>
+<td>${i.unitPaid.toFixed(2)} / ${i.unit}</td>
+<td>${i.comp} / ${i.compunit} = ${compConverted.toFixed(2)} / ${i.unit}</td>
+<td class='${cls}'>${diff.toFixed(2)}</td>
+</tr>`
+})
+
+html+='</table>'
+
+let msg=totalDiff>0?`<div class='good'>Total Saved ${totalDiff.toFixed(2)}</div>`:`<div class='bad'>You Paid ${Math.abs(totalDiff).toFixed(2)} More</div>`
+
+document.getElementById('compareResult').style.display='block'
+document.getElementById('compareResult').innerHTML=html+msg
+
+saveTransaction(totalDiff,cart.length)
+}
+
+function parseReceipt(){
+let lines=document.getElementById('receiptInput').value.split('\n')
+lines.forEach(l=>{
+let p=l.split(' ')
+if(p.length>=6){
+cart.push({
+product:p[0],
+qty:parseFloat(p[1]),
+unit:p[2],
+unitPaid:parseFloat(p[3])/parseFloat(p[1]),
+comp:parseFloat(p[4]),
+compunit:p[5]
+})
+}
+})
+renderCart()
+}
+
+function saveTransaction(diff,count){
+let hist=JSON.parse(localStorage.getItem('history')||'[]')
+hist.push({date:new Date().toLocaleDateString(),items:count,savings:diff})
+localStorage.setItem('history',JSON.stringify(hist))
+}
+
+function loadHistory(){
+let hist=JSON.parse(localStorage.getItem('history')||'[]')
+let html='<tr><th>Date</th><th>Items</th><th>Savings</th></tr>'
+
+hist.forEach(h=>{
+html+=`<tr><td>${h.date}</td><td>${h.items}</td><td>${h.savings.toFixed(2)}</td></tr>`
+})
+
+document.getElementById('historyTable').innerHTML=html
+}
+
+function savePrice(){
+let data=JSON.parse(localStorage.getItem('prices')||'[]')
+let p={
+product:document.getElementById('t_product').value,
+store:document.getElementById('t_store').value,
+price:document.getElementById('t_price').value,
+unit:document.getElementById('t_unit').value
+}
+data.push(p)
+localStorage.setItem('prices',JSON.stringify(data))
+loadPrices()
+}
+
+function loadPrices(){
+let data=JSON.parse(localStorage.getItem('prices')||'[]')
+let html='<tr><th>Product</th><th>Store</th><th>Price</th><th>Unit</th></tr>'
+data.forEach(p=>{
+html+=`<tr><td>${p.product}</td><td>${p.store}</td><td>${p.price}</td><td>${p.unit}</td></tr>`
+})
+document.getElementById('priceTable').innerHTML=html
+}
+
+function loadDashboard(){
+let hist=JSON.parse(localStorage.getItem('history')||'[]')
+let totalSaved=0
+let trips=hist.length
+hist.forEach(h=>totalSaved+=h.savings)
+
+let html=`
+<div>Total Trips: ${trips}</div>
+<div>Total Savings: ${totalSaved.toFixed(2)}</div>
+<div>Average Savings per Trip: ${(trips?totalSaved/trips:0).toFixed(2)}</div>
+`
+
+document.getElementById('dashStats').innerHTML=html
+}
+</script>
+</body>
+</html>
